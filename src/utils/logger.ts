@@ -6,7 +6,8 @@ const current = (process.env.LOG_LEVEL as Level) || 'info';
 function log(level: Level, ...args: unknown[]) {
   if (levels[level] <= levels[current]) {
     const ts = new Date().toISOString();
-    console[level === 'debug' ? 'log' : level](`[${ts}] [${level.toUpperCase()}]`, ...args);
+    // Always write to stderr so CLI stdout stays clean JSON
+    process.stderr.write(`[${ts}] [${level.toUpperCase()}] ${args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')}\n`);
   }
 }
 
