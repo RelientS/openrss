@@ -7,11 +7,6 @@ export const config = {
   cacheMax: parseInt(env.CACHE_MAX || '256', 10),
   logLevel: env.LOG_LEVEL || 'info',
   proxyUri: env.PROXY_URI || '',
-
-  /** LLM config — any OpenAI-compatible API */
-  llm: {
-    baseUrl: env.LLM_BASE_URL || 'https://api.openai.com/v1',
-    apiKey: env.LLM_API_KEY || '',
-    model: env.LLM_MODEL || 'gpt-4o-mini',
-  },
+  /** Directory where feed definitions are stored */
+  feedsDir: env.FEEDS_DIR || './feeds',
 };

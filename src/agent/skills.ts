@@ -1,158 +1,199 @@
 /**
- * Skill system — site-specific extraction hints for the AI agent.
+ * Skills — site-specific extraction knowledge for AI agents.
  *
- * Skills are short prompt fragments that tell the LLM how to best extract
- * content from a specific site. They can be loaded from YAML files in
- * the skills/ directory or defined inline.
+ * Each skill describes:
+ * - How to identify content items on the page
+ * - Key selectors and API patterns
+ * - Whether browser session is needed
  *
- * A skill matches when the URL contains the skill's domain pattern.
+ * Agents read these to inform their extraction scripts.
  */
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { logger } from '../utils/logger.js';
 
-interface Skill {
-  /** Domain pattern to match (e.g. "twitter.com", "x.com") */
+export interface Skill {
+  /** Domain patterns to match */
   match: string[];
-  /** Prompt hint for the LLM */
-  prompt: string;
   /** Whether this site needs browser session */
   needsBrowser: boolean;
+  /** Detailed extraction guidance for agents */
+  description: string;
+  /** Key CSS selectors */
+  selectors?: Record<string, string>;
+  /** API URL patterns for SPA interception */
+  apiPatterns?: string[];
+  /** Example extraction script */
+  example?: string;
 }
 
 const skills = new Map<string, Skill>();
 
-// ── Built-in skills ──
+// ── Built-in Skills ──
 
-const builtinSkills: Skill[] = [
+const builtins: Skill[] = [
   {
     match: ['x.com', 'twitter.com'],
-    prompt: `This is Twitter/X. Look for tweet items which typically have:
-- Tweet text content
-- Author name and handle
-- Timestamp
-- Tweet permalink (https://x.com/user/status/ID)
-Focus on the main timeline tweets, ignore promoted content and "who to follow" suggestions.`,
     needsBrowser: true,
+    description: 'Twitter/X is a SPA. Best approach: intercept the UserTweets GraphQL API. Navigate to the user profile, install interceptor for "UserTweets", scroll to trigger loading, then collect intercepted responses. Fallback: DOM extraction from [data-testid="tweet"] elements.',
+    selectors: {
+      tweet: '[data-testid="tweet"]',
+      tweetText: '[data-testid="tweetText"]',
+      userName: '[data-testid="UserName"]',
+      time: 'time[datetime]',
+      tweetLink: 'a[href*="/status/"]',
+    },
+    apiPatterns: ['UserTweets', 'UserTweetsAndReplies', 'SearchTimeline'],
+    example: `(function() {
+  const tweets = document.querySelectorAll('[data-testid="tweet"]');
+  return {
+    title: document.querySelector('[data-testid="UserName"] span')?.textContent + ' - Twitter',
+    link: location.href,
+    items: Array.from(tweets).slice(0, 20).map(t => ({
+      title: t.querySelector('[data-testid="tweetText"]')?.textContent?.slice(0, 200) || '',
+      link: 'https://x.com' + (t.querySelector('a[href*="/status/"]')?.getAttribute('href') || ''),
+      description: t.querySelector('[data-testid="tweetText"]')?.textContent || '',
+      pubDate: t.querySelector('time')?.getAttribute('datetime') || '',
+    })),
+  };
+})()`,
   },
   {
     match: ['bilibili.com'],
-    prompt: `This is Bilibili (Chinese video platform). Look for video items which have:
-- Video title
-- Video URL (https://www.bilibili.com/video/BVXXXX)
-- Author/uploader name
-- View count, duration
-- Upload date
-- Thumbnail image`,
     needsBrowser: true,
+    description: 'Bilibili user video pages. Navigate to space.bilibili.com/{uid}/video. Videos are in .small-item or .video-card containers. Bilibili has anti-scraping, browser session helps bypass it.',
+    selectors: {
+      videoCard: '.small-item, .video-card',
+      videoLink: 'a[href*="/video/"]',
+      videoTitle: '.title',
+      uploader: '.nickname, #h-name',
+      duration: '.duration',
+    },
   },
   {
     match: ['github.com/trending'],
-    prompt: `This is GitHub Trending. Each repository entry has:
-- Repository full name (owner/repo)
-- Description
-- Programming language
-- Star count (today/this week/this month)
-- Fork count
-- Link: https://github.com/owner/repo`,
     needsBrowser: false,
+    description: 'GitHub Trending page. Each repo is in an <article class="Box-row">. The repo link is inside an <h2> with a nested <a href="/owner/repo">. Description is in a <p> tag. Language in [itemprop="programmingLanguage"]. Star count near the end of each article.',
+    selectors: {
+      article: 'article.Box-row',
+      repoLink: 'h2 a[href^="/"]',
+      description: 'p.col-9',
+      language: '[itemprop="programmingLanguage"]',
+    },
   },
   {
-    match: ['youtube.com', 'youtu.be'],
-    prompt: `This is YouTube. Look for video items with:
-- Video title
-- Video URL (https://www.youtube.com/watch?v=ID)
-- Channel name
-- View count
-- Upload date / "X days ago"
-- Thumbnail`,
+    match: ['youtube.com'],
     needsBrowser: true,
+    description: 'YouTube is a SPA. For channel pages, navigate to /channel/ID/videos or /@handle/videos. Video items are in ytd-rich-item-renderer or ytd-grid-video-renderer. Titles in #video-title, links in a#thumbnail.',
+    selectors: {
+      videoItem: 'ytd-rich-item-renderer, ytd-grid-video-renderer',
+      title: '#video-title',
+      thumbnail: 'a#thumbnail',
+      channel: '#channel-name',
+      metadata: '#metadata-line span',
+    },
   },
   {
     match: ['reddit.com'],
-    prompt: `This is Reddit. Look for post items with:
-- Post title
-- Post URL (permalink)
-- Subreddit name
-- Author
-- Score (upvotes)
-- Comment count
-- Post time`,
     needsBrowser: false,
+    description: 'Reddit. Use old.reddit.com for simpler HTML. Posts are in .thing[data-fullname] containers on old.reddit.com, or shreddit-post on new reddit. Titles in a.title, score in .score, time in time[datetime].',
+    selectors: {
+      post: '.thing[data-fullname]',
+      title: 'a.title',
+      score: '.score.unvoted',
+      time: 'time[datetime]',
+      author: '.author',
+      comments: '.comments',
+    },
+  },
+  {
+    match: ['news.ycombinator.com'],
+    needsBrowser: false,
+    description: 'Hacker News. Items are in .athing rows. Title in .titleline > a. Score in .score. Author in .hnuser. Time in .age[title]. Comments link in the subtext row.',
+    selectors: {
+      item: '.athing',
+      title: '.titleline > a',
+      score: '.score',
+      author: '.hnuser',
+      age: '.age',
+      sitebit: '.sitebit',
+    },
+    example: `(function() {
+  const rows = document.querySelectorAll('.athing');
+  const items = Array.from(rows).map(row => {
+    const titleEl = row.querySelector('.titleline > a');
+    const sub = row.nextElementSibling;
+    return {
+      title: titleEl?.textContent || '',
+      link: titleEl?.href || '',
+      author: sub?.querySelector('.hnuser')?.textContent || '',
+      pubDate: sub?.querySelector('.age')?.getAttribute('title') || '',
+    };
+  });
+  return { title: 'Hacker News', link: 'https://news.ycombinator.com', items };
+})()`,
   },
   {
     match: ['weibo.com'],
-    prompt: `This is Weibo (Chinese social media). Look for post/tweet items with:
-- Post text content
-- Author name
-- Post time
-- Post permalink
-- Any attached images`,
     needsBrowser: true,
+    description: 'Weibo requires login for most content. Posts are in .card-wrap or [action-type="feed_list_item"]. Text in .txt, time in .from a, images in .media img.',
+    selectors: {
+      post: '.card-wrap, [action-type="feed_list_item"]',
+      text: '.txt',
+      time: '.from a',
+      images: '.media img',
+    },
   },
   {
     match: ['xiaohongshu.com'],
-    prompt: `This is Xiaohongshu (RED/Little Red Book). Look for note items with:
-- Note title
-- Note URL
-- Author name
-- Like count
-- Cover image`,
     needsBrowser: true,
+    description: 'Xiaohongshu (RED). Notes are displayed as cards. Need browser session. Note cards contain cover images, titles, author info, and like counts.',
+    selectors: {
+      noteCard: '.note-item, .feeds-container section',
+      title: '.title, .note-content',
+      author: '.author-wrapper .name',
+      likes: '.like-wrapper .count',
+    },
   },
   {
     match: ['zhihu.com'],
-    prompt: `This is Zhihu (Chinese Q&A platform). Look for answer/article items with:
-- Title (question or article title)
-- Content excerpt
-- Author name
-- Upvote count
-- Answer/article URL
-- Publish date`,
     needsBrowser: true,
+    description: 'Zhihu. Answers are in .ContentItem. Article titles in .ContentItem-title a. Content in .RichContent-inner. Author in .AuthorInfo-name. Upvotes in .VoteButton--up.',
+    selectors: {
+      item: '.ContentItem',
+      title: '.ContentItem-title a',
+      content: '.RichContent-inner',
+      author: '.AuthorInfo-name',
+      upvotes: '.VoteButton--up',
+      time: '.ContentItem-time',
+    },
   },
 ];
 
-// Register built-in skills
-for (const skill of builtinSkills) {
+for (const skill of builtins) {
   for (const domain of skill.match) {
     skills.set(domain, skill);
   }
 }
 
-// ── Load custom skills from files ──
+// ── Custom Skills ──
 
 export function loadSkillsFromDir(dir: string) {
   if (!existsSync(dir)) return;
-
   for (const file of readdirSync(dir)) {
-    if (!file.endsWith('.txt') && !file.endsWith('.md')) continue;
+    if (!file.endsWith('.json')) continue;
     try {
-      const content = readFileSync(join(dir, file), 'utf-8');
-      const lines = content.split('\n');
-
-      // First line: comma-separated domain patterns
-      // Second line: "browser: true/false"
-      // Rest: prompt
-      const match = lines[0]?.split(',').map(s => s.trim()).filter(Boolean) || [];
-      const needsBrowser = lines[1]?.toLowerCase().includes('true') ?? false;
-      const prompt = lines.slice(2).join('\n').trim();
-
-      if (match.length && prompt) {
-        const skill: Skill = { match, prompt, needsBrowser };
-        for (const domain of match) {
-          skills.set(domain, skill);
-          logger.info(`Loaded custom skill for: ${domain}`);
-        }
+      const skill: Skill = JSON.parse(readFileSync(join(dir, file), 'utf-8'));
+      for (const domain of skill.match) {
+        skills.set(domain, skill);
+        logger.info(`Loaded custom skill: ${domain}`);
       }
     } catch (err) {
       logger.warn(`Failed to load skill ${file}:`, err);
     }
   }
 }
-
-// ── Lookup ──
 
 export function findSkill(url: string): Skill | undefined {
   for (const [domain, skill] of skills) {
@@ -161,13 +202,13 @@ export function findSkill(url: string): Skill | undefined {
   return undefined;
 }
 
-export function listSkills(): Array<{ domains: string[]; needsBrowser: boolean }> {
+export function listSkills(): Skill[] {
   const seen = new Set<Skill>();
-  const result: Array<{ domains: string[]; needsBrowser: boolean }> = [];
+  const result: Skill[] = [];
   for (const skill of skills.values()) {
     if (seen.has(skill)) continue;
     seen.add(skill);
-    result.push({ domains: skill.match, needsBrowser: skill.needsBrowser });
+    result.push(skill);
   }
   return result;
 }
