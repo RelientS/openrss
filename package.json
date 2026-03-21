@@ -1,7 +1,7 @@
 {
   "name": "openrss",
-  "version": "0.3.0",
-  "description": "Turn any website into an RSS feed. AI agents use the CLI to create feeds, server hosts them.",
+  "version": "0.5.0",
+  "description": "Turn any website into an RSS feed. Uses agent-browser for automation, openrss for feed management.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -13,17 +13,15 @@
     "start": "node dist/index.js",
     "openrss": "tsx src/cli.ts"
   },
-  "keywords": ["rss", "feed", "browser", "automation", "chrome", "extension", "ai", "agent"],
+  "keywords": ["rss", "feed", "browser", "automation", "agent", "agent-browser"],
   "license": "MIT",
   "dependencies": {
     "hono": "^4.7.0",
     "@hono/node-server": "^1.14.0",
-    "lru-cache": "^11.0.0",
-    "ws": "^8.18.0"
+    "lru-cache": "^11.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@types/ws": "^8.5.0",
     "tsup": "^8.4.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
