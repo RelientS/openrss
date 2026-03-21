@@ -1,0 +1,28 @@
+{
+  "name": "openrss",
+  "version": "0.1.0",
+  "description": "Turn any website into an RSS feed. Zero config, reuses your browser sessions.",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup src/index.ts --format esm --dts",
+    "start": "node dist/index.js",
+    "daemon": "tsx src/browser/daemon.ts"
+  },
+  "keywords": ["rss", "feed", "browser", "automation", "chrome", "extension"],
+  "license": "MIT",
+  "dependencies": {
+    "hono": "^4.7.0",
+    "@hono/node-server": "^1.14.0",
+    "lru-cache": "^11.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

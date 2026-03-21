@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "OpenRSS Bridge",
+  "version": "0.1.0",
+  "description": "Browser bridge for OpenRSS — reuses your login sessions to generate RSS feeds",
+  "permissions": [
+    "debugger",
+    "tabs",
+    "cookies",
+    "activeTab"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "128": "icon128.png"
+  }
+}
