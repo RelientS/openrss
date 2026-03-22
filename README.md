@@ -14,28 +14,27 @@ AI Agent (reads SKILL.md)
 
 ## Install
 
+### As an Agent Skill (recommended)
+
+```bash
+npx skills add RelientS/openrss
+```
+
+This installs the skill to Claude Code, Codex, Cursor, Gemini CLI, Trae, and 36+ more agents.
+
+### CLI only
+
 ```bash
 npm install -g openrss agent-browser
 ```
 
-Or clone and link:
-
-```bash
-git clone https://github.com/RelientS/openrss.git
-cd openrss && npm install
-npm link
-```
-
 ## Usage
 
-### For AI Agents (Claude Code Skill)
+### For AI Agents
 
-Copy `SKILL.md` to your Claude Code skills:
+After installing the skill, just ask your agent:
 
-```bash
-mkdir -p ~/.claude/skills/openrss
-cp SKILL.md ~/.claude/skills/openrss/SKILL.md
-```
+> "Create an RSS feed for https://news.ycombinator.com using OpenRSS"
 
 Then ask Claude Code:
 
