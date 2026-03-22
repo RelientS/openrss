@@ -1,17 +1,24 @@
 {
   "name": "openrss",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Turn any website into an RSS feed. Uses agent-browser for automation, openrss for feed management.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
     "openrss": "./bin/openrss.js"
   },
+  "files": [
+    "bin",
+    "dist",
+    "SKILL.md",
+    "AGENT.md",
+    "README.md"
+  ],
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsup src/index.ts src/cli.ts --format esm --dts",
+    "build": "tsup src/cli.ts src/index.ts --format esm",
     "start": "node dist/index.js",
-    "openrss": "tsx src/cli.ts"
+    "prepublishOnly": "npm run build"
   },
   "keywords": ["rss", "feed", "browser", "automation", "agent", "agent-browser"],
   "author": "RelientS",

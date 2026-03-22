@@ -1,2 +1,0 @@
-#!/bin/bash
-exec npx --prefix /Users/bytedance/Desktop/repos/demos/openrss tsx /Users/bytedance/Desktop/repos/demos/openrss/src/cli.ts "$@"
