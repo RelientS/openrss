@@ -3,3 +3,7 @@ dist/
 *.log
 .env
 .DS_Store
+.agents/
+.agent/
+.trae/
+skills-lock.json
