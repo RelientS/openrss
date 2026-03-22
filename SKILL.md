@@ -65,7 +65,7 @@ For ByteTech, Twitter, Bilibili, internal platforms — anything behind SSO.
 ### Step 1: Open the page with login session
 
 ```bash
-agent-browser --session-name openrss open "https://bytetech.info/topic"
+agent-browser --session-name openrss open "https://internal.example.com/feed"
 agent-browser wait --load networkidle
 agent-browser screenshot                    # Verify page loaded correctly
 ```
@@ -131,24 +131,24 @@ agent-browser eval "(async () => {
 ### Step 5: Register the feed
 
 ```bash
-openrss register '{"id":"bytetech-openclaw","name":"ByteTech OpenClaw","url":"https://bytetech.info/topic","strategy":"browser","extractionScript":"(async () => { ... })()"}'
+openrss register '{"id":"my-internal-feed","name":"Internal Feed","url":"https://internal.example.com/feed","strategy":"browser","extractionScript":"(async () => { ... })()"}'
 ```
 
 ### Step 6: Refresh and serve
 
 ```bash
 # Generate cached RSS XML (uses agent-browser under the hood)
-openrss refresh bytetech-openclaw
+openrss refresh my-internal-feed
 
 # Serve
 openrss serve
-# → http://localhost:3000/feed/bytetech-openclaw
+# → http://localhost:3000/feed/my-internal-feed
 ```
 
 For recurring refresh, use cron:
 ```bash
 # Every hour
-0 * * * * cd /path/to/openrss && openrss refresh bytetech-openclaw 2>/dev/null
+0 * * * * cd /path/to/openrss && openrss refresh my-internal-feed 2>/dev/null
 ```
 
 ## Feed Definition Schema

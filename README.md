@@ -2,109 +2,118 @@
 
 **Turn any website into an RSS feed — powered by AI agents.**
 
-OpenRSS provides the **tools and knowledge** for AI agents (Claude Code, OpenCLI, etc.) to create RSS feeds from any website. You bring the agent, we bring the infrastructure.
+OpenRSS provides feed management tools that pair with [agent-browser](https://github.com/vercel-labs/agent-browser) for browser automation. AI agents (Claude Code, Codex, etc.) compose both to create RSS feeds from any website.
 
 ```
-AI Agent (Claude Code, etc.)
-    │  reads AGENT.md to learn tools
-    │  uses /tools/* to analyze pages
-    │  writes extraction scripts
-    │  registers feeds via /tools/feeds
-    │
-    ▼
-OpenRSS Server
-    │  serves registered feeds as RSS/JSON
-    │  manages browser sessions via Chrome Extension
-    │  caches feed results
-    │
-    ▼
-RSS Reader (Reeder, NetNewsWire, etc.)
-    subscribes to /feed/:id
+AI Agent (reads SKILL.md)
+    ├── agent-browser open/snapshot/eval/network  → browser automation
+    └── openrss register/refresh/serve            → feed management
+                                                       ↓
+                                                  RSS Reader subscribes to /feed/:id
 ```
 
-## Quick Start
+## Install
 
 ```bash
-git clone https://github.com/user/openrss.git
-cd openrss
-npm install
-npm run dev
+npm install -g openrss agent-browser
 ```
 
-Then ask your AI agent:
+Or clone and link:
+
+```bash
+git clone https://github.com/RelientS/openrss.git
+cd openrss && npm install
+npm link
+```
+
+## Usage
+
+### For AI Agents (Claude Code Skill)
+
+Copy `SKILL.md` to your Claude Code skills:
+
+```bash
+mkdir -p ~/.claude/skills/openrss
+cp SKILL.md ~/.claude/skills/openrss/SKILL.md
+```
+
+Then ask Claude Code:
 
 > "Create an RSS feed for https://news.ycombinator.com using OpenRSS"
 
-The agent will read `AGENT.md`, use the tools API to analyze the page, write an extraction script, and register the feed.
+### Manual Usage
 
-## How It Works
+**Public page:**
+```bash
+# Fetch and analyze
+openrss fetch "https://news.ycombinator.com"
 
-OpenRSS does **not** embed any AI model. Instead, it provides:
+# Register with extraction script
+openrss register '{"id":"hn","url":"https://news.ycombinator.com","strategy":"public","extractionScript":"..."}'
 
-1. **Tools API** — HTTP endpoints for fetching pages, running JS in browser, managing feeds
-2. **Skills** — Built-in knowledge about known websites (selectors, API patterns, strategies)
-3. **Feed Registry** — Persistent feed definitions served as RSS/JSON
-4. **Browser Bridge** — Chrome Extension that reuses your login sessions
+# Generate cached XML
+openrss refresh hn
 
-The AI agent orchestrates everything by calling the tools.
+# Serve
+openrss serve
+# → http://localhost:3000/feed/hn
+```
 
-## Tools API
+**Login-required page:**
+```bash
+# Open in browser (reuses Chrome login)
+agent-browser --session-name openrss open "https://internal-site.com/feed"
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/tools/fetch` | POST | Fetch a URL, return HTML |
-| `/tools/navigate` | POST | Navigate browser (with login session), return HTML |
-| `/tools/evaluate` | POST | Run JS in browser page context |
-| `/tools/cookies` | POST | Get browser cookies for a domain |
-| `/tools/status` | GET | Check Chrome Extension status |
-| `/tools/feeds` | POST | Register a new feed |
-| `/tools/feeds` | GET | List all registered feeds |
-| `/tools/feeds/:id` | DELETE | Remove a feed |
-| `/tools/skills` | GET | List built-in site skills |
-| `/tools/skills/match` | POST | Find skill for a URL |
+# Discover data APIs
+agent-browser network requests
 
-See **[AGENT.md](AGENT.md)** for the full agent integration guide.
+# Test extraction in browser context
+agent-browser eval "(async () => { ... })()"
 
-## Feed Strategies
+# Register and refresh
+openrss register '{"id":"internal","url":"...","strategy":"browser","extractionScript":"..."}'
+openrss refresh internal
+```
 
-| Strategy | Description | Chrome Extension? |
-|----------|-------------|-------------------|
-| `public` | Direct HTTP fetch — for public pages | No |
-| `browser` | Chrome Extension bridge — reuses your login session | Yes |
+## CLI Reference
+
+```
+openrss register '{json}'    Register a feed definition
+openrss list                 List all registered feeds
+openrss remove <id>          Remove a feed
+openrss refresh <id>         Execute extraction, cache to static/<id>.xml
+openrss fetch <url>          Fetch public page HTML
+openrss skills               List built-in site hints
+openrss skill-match <url>    Get extraction hints for a URL
+openrss serve                Start RSS server on :3000
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────┐
+│  agent-browser (Vercel)         │  Browser automation layer
+│  open / snapshot / eval         │  Handles login, SPA, network capture
+│  network / click / type         │
+└──────────────┬──────────────────┘
+               │ stdout (JSON)
+┌──────────────▼──────────────────┐
+│  openrss                        │  Feed management layer
+│  register / refresh / serve     │  Persists definitions, generates RSS XML
+│  skills / skill-match           │  Provides site extraction knowledge
+└──────────────┬──────────────────┘
+               │ static/<id>.xml
+┌──────────────▼──────────────────┐
+│  RSS Reader                     │  Reeder, NetNewsWire, Inoreader, etc.
+│  subscribes to /feed/:id        │
+└─────────────────────────────────┘
+```
 
 ## Built-in Skills
 
-Skills provide extraction hints for known websites:
+Site extraction hints for: Twitter/X, Bilibili, GitHub Trending, YouTube, Reddit, Hacker News, Weibo, Xiaohongshu, Zhihu.
 
-- Twitter/X (browser, API interception)
-- Bilibili (browser, DOM extraction)
-- GitHub Trending (public, HTML parsing)
-- YouTube (browser, SPA)
-- Reddit (public, old.reddit.com)
-- Hacker News (public, DOM extraction)
-- Weibo (browser)
-- Xiaohongshu (browser)
-- Zhihu (browser)
-
-Custom skills can be added as JSON files in the `skills/` directory.
-
-## Browser Extension Setup
-
-For sites requiring login (Twitter, Bilibili, etc.):
-
-1. Open Chrome → `chrome://extensions/`
-2. Enable "Developer mode"
-3. "Load unpacked" → select the `extension/` directory
-4. Browse normally — the extension reuses your existing login sessions
-
-## Configuration
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3000` | HTTP server port |
-| `DAEMON_PORT` | `19826` | Browser bridge port |
-| `CACHE_EXPIRE` | `300` | Feed cache TTL (seconds) |
-| `FEEDS_DIR` | `./feeds` | Feed definitions directory |
+Custom skills: add JSON files to `skills/` directory.
 
 ## License
 

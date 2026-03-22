@@ -1,8 +1,0 @@
-{
-  "id": "bytetech-openclaw-topics",
-  "name": "ByteTech OpenClaw Topics",
-  "url": "https://bytetech.info/topic",
-  "strategy": "browser",
-  "extractionScript": "(async () => { const resp = await fetch('/proxy_tech_api/v1/content/topic/feed', { method: 'POST', headers: {'Content-Type': 'application/json', 'Accept': 'application/json'}, body: JSON.stringify({sort: 2, cursor: '1', limit: 50, application_id: '7613691314101649454'}) }); const data = await resp.json(); const items = data.data.topic_infos.map(info => { const topic = info.topic; const author = info.author || {}; const html = topic.html_content || ''; const div = document.createElement('div'); div.innerHTML = html; const text = div.textContent.trim(); const titleText = text.replace(/#[^#]+#/g, '').replace(/◆\\S+/g, '').trim(); return { title: (titleText.substring(0, 120) || 'Untitled').replace(/\\n/g, ' '), link: 'https://bytetech.info/topic/' + topic.msg_id, author: author.name || author.en_name || '', pubDate: new Date(topic.ctime * 1000).toISOString(), description: text.substring(0, 800) }; }); return { title: 'ByteTech - OpenClaw Topics', link: 'https://bytetech.info/topic', description: 'ByteTech 话题广场 - OpenClaw 产品相关讨论', items }; })()",
-  "createdAt": "2026-03-22T02:06:04.089Z"
-}

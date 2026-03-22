@@ -14,6 +14,11 @@
     "openrss": "tsx src/cli.ts"
   },
   "keywords": ["rss", "feed", "browser", "automation", "agent", "agent-browser"],
+  "author": "RelientS",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RelientS/openrss"
+  },
   "license": "MIT",
   "dependencies": {
     "hono": "^4.7.0",
