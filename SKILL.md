@@ -1,5 +1,6 @@
 ---
-description: "OpenRSS — Turn any website into an RSS feed. Combines agent-browser for browser automation with openrss for feed management. Supports public pages and login-required sites."
+name: openrss
+description: "Turn any website into an RSS feed. Combines agent-browser for browser automation with openrss CLI for feed management. Supports public pages and login-required sites via Chrome session reuse."
 ---
 
 # OpenRSS Skill
